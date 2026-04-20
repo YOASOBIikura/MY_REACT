@@ -1,0 +1,3 @@
+export const REACT_ELEMENT_TYPE = typeof Symbol === 'function' && Symbol.for ? Symbol.for('du1React') : 'du1React';
+
+
