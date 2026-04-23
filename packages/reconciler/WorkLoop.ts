@@ -1,5 +1,6 @@
 import { beginWork } from "./BeginWork.js";
 import { completeWork } from "./CompleteWork.js";
+import { appendChild, removeChild } from "./FiberConfigDOM.js";
 import type { Fiber } from "./ReactInternalTyes.js";
 
 // 当前正在处理的节点
@@ -45,4 +46,29 @@ export function workLoop(fiber: Fiber){
         // 向下的工作
         performUnitOfWork(workInProgress)
     }
+}
+
+/**
+ * 向上获取hostRootFiber
+ * @param fiber
+ * @return hostRootFiber
+ */
+function getRootForUpdateFiber(fiber: Fiber): Fiber{
+    let node = fiber;
+    while(node.return){
+        node = node.return
+    }
+    return node;
+}
+
+/**
+ * 更新Fiber树
+ * @param fiber
+ */
+export function updateOnFiber(fiber: Fiber){
+    const hostRootFiber = getRootForUpdateFiber(fiber);
+    removeChild(hostRootFiber.stateNode.containerInfo, hostRootFiber.child?.stateNode);
+    workLoop(fiber);
+    // 重新挂载已经更新了的dom
+    appendChild(hostRootFiber.stateNode.containerInfo, hostRootFiber.child?.stateNode);
 }

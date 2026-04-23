@@ -38,12 +38,14 @@
     // Recommended Options
     "strict": true,
     "jsx": "react-jsx",
+    "jsxImportSource": "packages/react", 
+    "baseUrl": ".",
     "verbatimModuleSyntax": true,
     "isolatedModules": true,
     "noUncheckedSideEffectImports": true,
     "moduleDetection": "force",
     "skipLibCheck": true,
   },
-  "include": ["packages/**/*"],
+  "include": ["packages/**/*", "./global.d.ts"],
   "exclude": ["node_modules", "dist"]
 }

@@ -8,7 +8,7 @@ module.exports = {
     preset: 'ts-jest',
     testEnvironment: 'jsdom',
     roots: ['<rootDir>'],
-    testMatch: ['**/?(*.)test.ts'],
+    testMatch: ['**/?(*.)test.{ts, tsx}'],
     moduleNameMapper: {
         '^(\\.{1,2}/.*)\\.js$': '$1',
         '^shared/(.*)\\.js$': '<rootDir>/packages/shared/$1',
@@ -16,7 +16,7 @@ module.exports = {
             prefix: '<rootDir>/'
         })
     },
-    transform: {
+    transform: { 
         '^.+\\.(ts|tsx)$': ['ts-jest', {
             tsconfig: {
                 module: 'commonjs',
@@ -29,3 +29,4 @@ module.exports = {
     collectCoverage: true,
     coverageDirectory: 'coverage'
 }
+ 

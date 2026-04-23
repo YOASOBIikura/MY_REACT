@@ -1,5 +1,6 @@
 import { reconcileChildFibers } from "./ChildFiber.js";
 import { createFiberFromElement } from "./Fiber.js";
+import { renderWihtHooks } from "./FiberHook.js";
 import { FunctionComponent, HostComponent, HostRoot, HostText, type Fiber } from "./ReactInternalTyes.js";
 
 
@@ -7,7 +8,9 @@ import { FunctionComponent, HostComponent, HostRoot, HostText, type Fiber } from
 export function beginWork(fiber: Fiber): Fiber|null {
 
     // 纯文本节点
-    if(typeof fiber.pendingProps === 'string'){
+    if(typeof fiber.pendingProps.children === 'string' ||
+        typeof fiber.pendingProps.children === 'number'
+    ){
         return null;
     }
 
@@ -15,7 +18,7 @@ export function beginWork(fiber: Fiber): Fiber|null {
         case HostRoot:
             return null;
         case FunctionComponent: // 处理函数组件
-            const children = fiber.type();
+            const children = renderWihtHooks(fiber, fiber.type);
             fiber.child = reconcileChildFibers(fiber, children)
             return fiber.child;
         case HostComponent: // 处理普通fiber组件

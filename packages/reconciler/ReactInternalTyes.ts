@@ -19,5 +19,6 @@ export type Fiber = {
     child:Fiber|null,
     sibling:Fiber|null,
     ref:any,
-    pendingProps:any
+    pendingProps:any,
+    memoizedState: any,
 }

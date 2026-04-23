@@ -25,6 +25,13 @@ export function appendChild(parent: Instance, child: Instance){
 }
 
 /**
+ * 删除dom节点
+ */
+export function removeChild(parent: Instance, child: Instance){
+    parent.removeChild(child);
+} 
+
+/**
  * 设置属性
  */
 export function setInitialProps(dom: Instance, props: any){
@@ -34,7 +41,7 @@ export function setInitialProps(dom: Instance, props: any){
             continue;
         }
         if(prop === 'children'){
-            if(typeof props.children === 'string'){
+            if(typeof props.children === 'string' || typeof props.children === 'number'){
                 dom.textContent = props.children;
             }
             continue;
