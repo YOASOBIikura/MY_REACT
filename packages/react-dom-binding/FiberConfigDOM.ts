@@ -1,10 +1,15 @@
+import type { Fiber } from "packages/reconciler/ReactInternalTyes.js";
+import { precacheFiberNode } from "./ReactDomComponentTree.js";
+
 export type Instance = HTMLElement;
 export type TextInstance = Text;
 
 /**
  * 创建DOM节点
  */
-export function createDom(type:string){
+export function createDom(type:string, fiber: Fiber){
+    let domElement = document.createElement(type);
+    precacheFiberNode(fiber, domElement);
     return document.createElement(type);
 }
 

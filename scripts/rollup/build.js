@@ -38,7 +38,7 @@ const packages = [
         ]
     },
     {
-        name: 'react',
+        name: 'react-dom',
         input: 'packages/react-dom/client.ts',
         output: [
             {
@@ -47,6 +47,7 @@ const packages = [
                 name: 'react-dom'
             }
         ],
+        external:['../react'],
         packageJson: {
             "name": "react-dom",
             "version": "1.0.0",
@@ -71,7 +72,9 @@ async function build(){
                 })
             ]
         }
-
+        if(pkg.external){
+            config.external = pkg.external
+        }
         const bundle = await rollup(config);
         for(const output of pkg.output){
             await bundle.write(output);

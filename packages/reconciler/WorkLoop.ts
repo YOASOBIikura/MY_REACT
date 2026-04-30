@@ -1,6 +1,6 @@
 import { beginWork } from "./BeginWork.js";
 import { completeWork } from "./CompleteWork.js";
-import { appendChild, removeChild } from "./FiberConfigDOM.js";
+import { appendChild, removeChild } from "../react-dom-binding/FiberConfigDOM.js";
 import type { Fiber } from "./ReactInternalTyes.js";
 
 // 当前正在处理的节点

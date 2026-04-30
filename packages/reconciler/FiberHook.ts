@@ -1,9 +1,11 @@
 import { updateContainer } from "./FiberReconciler.js";
 import type { Fiber } from "./ReactInternalTyes.js"
 import { updateOnFiber } from "./WorkLoop.js";
+import { ReactSharedInternals } from "packages/react/index.js";
 
 export type Hook = {
     memoizedState: any,
+    dispatch: any,
     next: Hook | null,
 }
 
@@ -14,20 +16,21 @@ let currentlyRenderingFiber: Fiber|null = null;
 let workInProgressHook: Hook|null = null;
 
 // 定义一个导出的状态管理hook
-export let useState:any = null; 
+// export let useState:any = null; 
 
 
 
 /**
- * 更新组件状态值
+ * 分发更新组件状态值
  * 1. 更改状态值
  * 2. 重新渲染组件
+ * @param Fiber hook所在的fiber
+ * @param hook 当前的hook
  * @param newState 新的状态值
  */
-function setState(newState: any){
-    const hook = currentlyRenderingFiber!.memoizedState;
+function dispatchSetState(fiber: Fiber, hook: Hook, newState: any){
     hook.memoizedState = newState;
-    updateOnFiber(currentlyRenderingFiber!);
+    updateOnFiber(fiber);
 }
 
 /**
@@ -52,8 +55,9 @@ function setState(newState: any){
  * @returns hook对象
  */
 function mountWorkInProgressHook(initialState: any){
-     const hook = {
+     const hook: Hook = {
         memoizedState: initialState,
+        dispatch: null,
         next: null 
     }
     if(workInProgressHook == null){
@@ -75,7 +79,9 @@ function mountWorkInProgressHook(initialState: any){
  */
 export function mountState(initialState:any){
     const hook = mountWorkInProgressHook(initialState);
-    return [hook.memoizedState, setState];
+    const dispatch = dispatchSetState.bind(null, currentlyRenderingFiber!, hook);
+    hook.dispatch = dispatch;
+    return [hook.memoizedState, dispatch];
 } 
 
 /**
@@ -84,8 +90,21 @@ export function mountState(initialState:any){
  * 2. 返回状态和更新状态的方法
  */
 export function updateState(){
-    const hook = currentlyRenderingFiber!.memoizedState;
-    return [hook.memoizedState, setState];
+    const hook = updateWorkInProgressHook();
+    return [hook!.memoizedState, hook!.dispatch];
+}
+
+/**
+ * update阶段获取当前的hook
+ * @returns 当前的hook
+ */
+function updateWorkInProgressHook(){
+    if(workInProgressHook === null){
+        workInProgressHook = currentlyRenderingFiber!.memoizedState;
+    }else{
+        workInProgressHook = workInProgressHook.next;
+    }
+    return workInProgressHook;
 }
 
 /**
@@ -100,11 +119,14 @@ export function renderWihtHooks(workInProgress: Fiber, Component: any){
     currentlyRenderingFiber = workInProgress;
     // 根据组件是否存在memoizedState状态来判断是首次加载还是二次更新
     if(currentlyRenderingFiber!.memoizedState === null){
-        useState = mountState;
+        ReactSharedInternals.H = mountState;
     }else{
-        useState = updateState;
+        ReactSharedInternals.H = updateState;
     }
-    return Component(); 
+    const result = Component();
+    workInProgressHook = null;
+    currentlyRenderingFiber = null;
+    return result;
 }
 
 
