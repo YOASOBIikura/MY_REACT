@@ -2,6 +2,7 @@ import { beginWork } from "./BeginWork.js";
 import { completeWork } from "./CompleteWork.js";
 import { appendChild, removeChild } from "../react-dom-binding/FiberConfigDOM.js";
 import type { Fiber } from "./ReactInternalTyes.js";
+import { commitMutaionEffects } from "./CommitWork.js";
 
 // 当前正在处理的节点
 let workInProgress:Fiber|null = null;
@@ -70,5 +71,5 @@ export function updateOnFiber(fiber: Fiber){
     removeChild(hostRootFiber.stateNode.containerInfo, hostRootFiber.child?.stateNode);
     workLoop(fiber);
     // 重新挂载已经更新了的dom
-    appendChild(hostRootFiber.stateNode.containerInfo, hostRootFiber.child?.stateNode);
+    commitMutaionEffects(hostRootFiber);
 }
