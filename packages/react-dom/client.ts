@@ -1,16 +1,16 @@
 import type { ReactElement } from "shared/ReactElementType.js";
 import { createContainer, updateContainer } from "../reconciler/FiberReconciler.js";
-import type { Fiber } from "../reconciler/ReactInternalTyes.js";
+import type { Fiber, FiberRoot } from "../reconciler/ReactInternalTyes.js";
 
 
 type ReactDomRootType = {
-    _internalRoot: Fiber;
+    _internalRoot: FiberRoot;
     render: (element: ReactElement)=>void;
 }
 
-function ReactDomRoot(hostRootFiber: Fiber):ReactDomRootType{
+function ReactDomRoot(fiberRoot: FiberRoot):ReactDomRootType{
     return {
-        _internalRoot: hostRootFiber,
+        _internalRoot: fiberRoot,
         render: function (element: ReactElement) {
             updateContainer(element, this._internalRoot);
         }
@@ -21,8 +21,8 @@ function ReactDomRoot(hostRootFiber: Fiber):ReactDomRootType{
  * 初始化react，创建根节点
  */
 function  createRoot(container: HTMLElement) {
-    const hostRootFiber = createContainer(container);
-    return ReactDomRoot(hostRootFiber);
+    const fiberRoot = createContainer(container);
+    return ReactDomRoot(fiberRoot);
 }
 
 

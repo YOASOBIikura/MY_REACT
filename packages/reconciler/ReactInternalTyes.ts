@@ -1,3 +1,5 @@
+import type { Flags } from "./FiberFlags.js";
+
 export type WorkTag = 0 | 3 | 5 | 6;
 export const HostRoot = 3;
 export const HostComponent = 5;
@@ -6,7 +8,9 @@ export const FunctionComponent = 0;
 
 
 export type FiberRoot = {
-    containerInfo: HTMLElement
+    containerInfo: HTMLElement,
+    current: Fiber|null,
+
 }
 
 export type Fiber = {
@@ -21,4 +25,7 @@ export type Fiber = {
     ref:any,
     pendingProps:any,
     memoizedState: any,
+    alternate: Fiber|null,
+    flags: Flags,
+    deletions: Fiber[]|null
 }

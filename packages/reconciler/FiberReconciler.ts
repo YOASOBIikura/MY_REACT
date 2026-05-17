@@ -1,8 +1,8 @@
 import type { ReactElement } from "shared/ReactElementType.js";
 import { createFiberFromElement, createHostRootFiber } from "./Fiber.js";
 import { createFiberRoot } from "./FiberRoot.js";
-import type { Fiber } from "./ReactInternalTyes.js";
-import { workLoop } from "./WorkLoop.js";
+import type { Fiber, FiberRoot } from "./ReactInternalTyes.js";
+import { updateOnFiber } from "./WorkLoop.js";
 import { appendChild } from "../react-dom-binding/FiberConfigDOM.js";
 import { internalInstanceKey } from "packages/react-dom-binding/ReactDomComponentTree.js";
 import { accumulateSinglePhaseListeners, listenToAllSupportedEvents, processEventQueueItemsInOrder } from "packages/react-dom-binding/DomPluginEventSystem.js";
@@ -14,28 +14,23 @@ import { commitMutaionEffects } from "./CommitWork.js";
  * 创建FiberRoot, HostRootFiber, 并建立关联
  */
 export function createContainer(containerInfo: HTMLElement){
-    const root = createFiberRoot(containerInfo); // FiberRoot
+    const fiberRoot = createFiberRoot(containerInfo); // FiberRoot
     const hostRootFiber = createHostRootFiber(); // 创建HostRootFiber
-    hostRootFiber.stateNode = root;
-    listenToAllSupportedEvents(root.containerInfo);
-    return hostRootFiber
+    hostRootFiber.memoizedState = {element: null};
+    hostRootFiber.stateNode = fiberRoot;
+    fiberRoot.current = hostRootFiber;
+    listenToAllSupportedEvents(fiberRoot.containerInfo);
+    return fiberRoot;
 }
 
 
 /**
  * 更新容器
- * 1. 构建子fiber
- * 2. 关联hostRootFiber和子fiber
- * 3. 挂载子fiber到root dom上去
+ * 1. 构建fiber树
+ * 2. 挂载子fiber到root dom上去
  */
-export function updateContainer(element: ReactElement, root: Fiber){
-    // 1. 构建子fiber
-    const containerFiber = createFiberFromElement(element);
-    workLoop(containerFiber);
-    // 2. 关联hostRootFiber和子Fiber
-    root.child = containerFiber;
-    containerFiber.return = root;
-    // 3. 挂载子fiber到root dom上去
-    commitMutaionEffects(root);
+export function updateContainer(element: ReactElement, fiberRoot: FiberRoot){
+    fiberRoot.current!.memoizedState.element = element;
+    updateOnFiber(fiberRoot);
 }
 

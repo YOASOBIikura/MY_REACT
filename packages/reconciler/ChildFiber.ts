@@ -1,11 +1,82 @@
 import { REACT_ELEMENT_TYPE } from "shared/ReactSymbols.js";
-import { createFiber, createFiberFromElement, createFiberFromText } from "./Fiber.js";
+import { createFiber, createFiberFromElement, createFiberFromText, createWorkInProgress } from "./Fiber.js";
 import type { Fiber } from "./ReactInternalTyes.js";
+import { ChildDeletion, Placement } from "./FiberFlags.js";
+
+
+/**
+ * 删除当前元素
+ * 1. 打删除标记（首次）
+ * 2. 存储要删除的子节点
+ * @param returnFiber 
+ * @param childToDelete 
+ * @returns 
+ */
+function deleteChild(returnFiber:Fiber, childToDelete: Fiber){
+    const deletions = returnFiber.deletions;
+    if(deletions === null){
+        returnFiber.deletions = [childToDelete];
+        returnFiber.flags |= ChildDeletion
+    }else{
+        deletions.push(childToDelete);
+    }
+}
+
+/**
+ * 删除其余元素
+ * @param returnFiber 
+ * @param childrenToDelete 
+ * @returns 
+ */
+function deleteRemainingChildren(returnFiber: Fiber, childrenToDelete: Fiber|null){
+    let childToDelete = childrenToDelete;
+    while(childToDelete !== null){
+        deleteChild(returnFiber, childToDelete);
+        childToDelete = childToDelete.sibling;
+    }
+}
+
+/**
+ * 给单一子节点打place标记
+ * @param newFiber 
+ * @returns newFiber
+ */
+function placeSingleChild(newFiber: Fiber){
+    if(newFiber.alternate === null){
+        newFiber.flags |= Placement
+    }
+    return newFiber;
+}
 
 // 创建单一子节点，返回子节点
-function reconcileSingleElement(fiber: any, children:any):Fiber{
+function reconcileSingleElement(returnFiber: any, children:any):Fiber{
+    const key = children.key;
+    let child = returnFiber.alternate?.child;
+    // 遍历旧节点，进行对比
+    while(child){
+        if(child.key === key){
+            const elementType = children.type;
+            if(elementType === child.type){
+                const existing = createWorkInProgress(child, children.props);
+                existing.return = returnFiber;
+                // 删除其余元素
+                deleteRemainingChildren(returnFiber, child.sibling);
+                return existing;
+            }else{
+                // 删除其余元素
+                deleteRemainingChildren(returnFiber, child);
+                break;
+            }
+        }else{
+            // 删除当前元素
+            deleteChild(returnFiber, child);
+        }
+        child = child.sibling;
+    }
+    // 创建新节点
     const created = createFiberFromElement(children);
-    created.return = fiber;
+    created.return = returnFiber;
+    created.flags |= Placement;
     return created;
 }
 
@@ -38,7 +109,7 @@ export function reconcileChildFibers(fiber: Fiber, children:any):Fiber|null{
 
     // 单一子节点
     if(children.$$typeof === REACT_ELEMENT_TYPE){
-        return reconcileSingleElement(fiber, children);
+        return placeSingleChild(reconcileSingleElement(fiber, children));
     }
 
     // 多子节点

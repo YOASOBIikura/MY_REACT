@@ -8,15 +8,16 @@ import { FunctionComponent, HostComponent, HostRoot, HostText, type Fiber } from
 export function beginWork(fiber: Fiber): Fiber|null {
 
     // 纯文本节点
-    if(typeof fiber.pendingProps.children === 'string' ||
-        typeof fiber.pendingProps.children === 'number'
+    if(typeof fiber.pendingProps?.children === 'string' ||
+        typeof fiber.pendingProps?.children === 'number'
     ){
         return null;
     }
 
     switch(fiber.tag){
         case HostRoot:
-            return null;
+            fiber.child = reconcileChildFibers(fiber, fiber.memoizedState.element);
+            return fiber.child;
         case FunctionComponent: // 处理函数组件
             const children = renderWihtHooks(fiber, fiber.type);
             fiber.child = reconcileChildFibers(fiber, children)
