@@ -27,5 +27,6 @@ export type Fiber = {
     memoizedState: any,
     alternate: Fiber|null,
     flags: Flags,
-    deletions: Fiber[]|null
+    deletions: Fiber[]|null,
+    index: number
 }
