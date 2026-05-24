@@ -88,7 +88,7 @@ function reconcileSingleElement(returnFiber: any, children:any):Fiber{
  * @param newChild
  * @returns Fiber 
  */
-function updateTextNode(returnFiber: Fiber, oldFiber: Fiber, textContent: string): Fiber {
+function updateTextNode(returnFiber: Fiber, oldFiber: Fiber|null, textContent: string): Fiber {
     // 如果旧节点为空，或者旧节点不是文本节点，就创建否则复用
     if(oldFiber === null || oldFiber.tag !== HostText){
         const created = createFiberFromText(textContent);
@@ -108,7 +108,7 @@ function updateTextNode(returnFiber: Fiber, oldFiber: Fiber, textContent: string
  * @param element 
  * @returns Fiber
  */
-function updateElement(returnFiber: Fiber, oldFiber: Fiber, element: any): Fiber {
+function updateElement(returnFiber: Fiber, oldFiber: Fiber|null, element: any): Fiber {
     // 获取创建的元素类型
     const elementType = element.type;
     // 判断旧节点是否存在
@@ -135,7 +135,7 @@ function updateElement(returnFiber: Fiber, oldFiber: Fiber, element: any): Fiber
  * @param newChild
  * @returns Fiber | null
  */
-function updateSlot(returnFiber: Fiber, oldFiber: Fiber, newChild: any): Fiber | null {
+function updateSlot(returnFiber: Fiber, oldFiber: Fiber, newChild: any): any {
     // 获取旧节点的key
     const key = oldFiber.key;
     // 如果更新节点是文本节点
@@ -194,6 +194,55 @@ function placeChild(newFiber: Fiber, lastPlaceIndex: number, newIndex: number): 
     }
 }
 
+/**
+ * 将剩余节点添加到临时映射，以便快速查找
+ * @param currentFirstChild 
+ * @returns Map<string, Fiber>
+ */
+function mapRemainingChildren(currentFirstChild:Fiber|null): Map<string|number, Fiber>{
+    // 创建一个Map
+    const existingChildren = new Map();
+    // 获取当前子节点
+    let child = currentFirstChild;
+    // 遍历子节点
+    while(child !== null){
+        // 将子节点添加到map
+        existingChildren.set(child.key === null ? child.index : child.key, child);
+        // 移动指针
+        child = child.sibling;
+    }
+    // 返回map
+    return existingChildren;
+}
+
+
+/**
+ * 从映射中获取节点
+ * @param existingChildren 
+ * @param returnFiber 
+ * @param newIdx 
+ * @param newChild 
+ * @returns Fiber
+ */
+function updateFromMap(existingChildren: Map<string|number, Fiber>, returnFiber: Fiber, newIdx: number, newChild: any): any{
+    // 判断文本类型
+    if(typeof newChild === 'string' || typeof newChild === 'number'){
+        // 从map中获取节点
+        const matchedFiber = existingChildren.get('' + newIdx) || null;
+        return updateTextNode(returnFiber, matchedFiber, newChild as string);
+    }
+    // 判断对象类型
+    if(typeof newChild === 'object' && newChild !== null){
+        switch(newChild.$$typeof){
+            case REACT_ELEMENT_TYPE: {
+                // 从map中获取节点
+                const matchedFiber: Fiber | null = existingChildren.get(newChild.key === null ? newIdx : newChild.key) || null;
+                return updateElement(returnFiber, matchedFiber, newChild);
+            }
+        }
+    }
+}
+
 // 创建数组中所有子节点并建立他们之间的联系，返回第一个子节点
 function reconcileChildrenArray(returnFiber: any, children:any):Fiber|null{
     // 第一个子节点
@@ -246,7 +295,7 @@ function reconcileChildrenArray(returnFiber: any, children:any):Fiber|null{
     if(oldFiber === null){
          for(; newIdx < children.length; newIdx++){
             const newFiber = typeof children[newIdx] === 'string' || 
-            typeof children[newIdx] === 'number' ? createFiberFromText(children) : createFiberFromElement(children[i]);
+            typeof children[newIdx] === 'number' ? createFiberFromText(children) : createFiberFromElement(children[newIdx]);
             newFiber.return = returnFiber;
             // 打标记
             lastPlacedIndex = placeChild(newFiber, lastPlacedIndex, newIdx);
@@ -266,7 +315,7 @@ function reconcileChildrenArray(returnFiber: any, children:any):Fiber|null{
     // 遍历剩余新节点，在map中查找是否可以复用，可以复用则更新，否则创建
     for(;newIdx < children.length; newIdx++){
         // 从map中获取节点
-        const newFiber = updateFromMap();
+        const newFiber = updateFromMap(existingChildren, returnFiber, newIdx, children[newIdx]);
         // 如果节点是复用的，就删除map中的节点
         if(newFiber.alternate !== null){
             existingChildren.delete(newFiber.key === null ? newIdx : newFiber.key);
