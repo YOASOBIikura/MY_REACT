@@ -18,4 +18,12 @@ export function precacheFiberNode(fiber: Fiber, instance: Instance){
     (instance as any)[internalInstanceKey] = fiber;
 }
 
+/**
+ * 删除dom元素对fiber的引用
+ * @param dom
+ */
+export function detachDeletedInstance(dom: Instance){
+    delete (dom as any)[internalInstanceKey];
+}
+
 

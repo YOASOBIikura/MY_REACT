@@ -30,6 +30,16 @@ export function appendChild(parent: Instance, child: Instance){
 }
 
 /**
+ * 插入DOM节点
+ * @param parent 父节点 
+ * @param child 子节点
+ * @param before 兄弟节点
+ */
+export function insertBefore(parent: Instance, child: Instance, before: Instance){
+    parent.insertBefore(child, before);
+}
+
+/**
  * 删除dom节点
  */
 export function removeChild(parent: Instance, child: Instance){
@@ -52,6 +62,35 @@ export function setInitialProps(dom: Instance, props: any){
             continue;
         }
         dom.setAttribute(prop, props[prop])  
+    }
+}
+
+/**
+ * 更新文本节点
+ * @param textInstance 
+ * @param text 
+ */
+export function commitTextUpdate(textInstance: TextInstance, text: string){
+    textInstance.nodeValue = text;
+}
+
+/**
+ * 设置属性值
+ * @param dom
+ * @param prop
+ * @param value
+ */
+export function setProp(dom: Instance, prop: string, value: any){
+    switch(prop){
+        case 'child': {
+            if(typeof value === 'string' || typeof value === 'number'){
+                dom.textContent = value.toString();
+            }
+            break;
+        }
+        default: {
+            dom.setAttribute(prop, value);
+        }
     }
 }
 

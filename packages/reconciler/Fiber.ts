@@ -72,6 +72,9 @@ export function createWorkInProgress(current: Fiber, pendingProps: any): Fiber {
         current.alternate = workInProgress;
     }else{
         workInProgress.pendingProps = pendingProps;
+        workInProgress.flags = NoFlags;
+        workInProgress.subtreeFlags = NoFlags;
+        workInProgress.deletions = null;
     }
     workInProgress.memoizedState = current.memoizedState;
     return workInProgress;
