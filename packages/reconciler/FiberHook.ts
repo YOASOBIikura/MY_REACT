@@ -1,6 +1,6 @@
 import { updateContainer } from "./FiberReconciler.js";
 import type { Fiber } from "./ReactInternalTyes.js"
-import { getRootForUpdateFiber, updateOnFiber } from "./WorkLoop.js";
+import { getRootForUpdateFiber, scheduleUpdateOnFiber } from "./WorkLoop.js";
 import { ReactSharedInternals } from "packages/react/index.js";
 
 export type Hook = {
@@ -31,7 +31,7 @@ let workInProgressHook: Hook|null = null;
 function dispatchSetState(fiber: Fiber, hook: Hook, newState: any){
     hook.memoizedState = newState;
     const fiberRoot = getRootForUpdateFiber(fiber);
-    updateOnFiber(fiberRoot);
+    scheduleUpdateOnFiber(fiberRoot);
 }
 
 /**

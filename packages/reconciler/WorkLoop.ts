@@ -4,10 +4,17 @@ import { appendChild, removeChild } from "../react-dom-binding/FiberConfigDOM.js
 import type { Fiber, FiberRoot } from "./ReactInternalTyes.js";
 import { commitMutaionEffects, commitPassiveUnmountEffects } from "./CommitWork.js";
 import { createWorkInProgress } from "./Fiber.js";
+import { ensureRootIsScheduled } from "./FiberRootScheduler.js";
+import { getCurrentTime, getStartTime, setStartTime, shouldYield } from "./Scheduler.js";
 
 // 当前正在处理的节点
 let workInProgress:Fiber|null = null;
 
+// 当前处理的fiber根节点
+let workInProgressRoot: FiberRoot|null = null;
+
+// 根节点的状态
+let rootState = 0;
 
 /**
  * 完成当前工作，对当前节点进行回溯阶段，并触发完成工作
@@ -41,12 +48,18 @@ function performUnitOfWork(fiber: Fiber){
 
 /**
  * 遍历Fiber节点，完成对应工作
+ * 1. 我怎么知道我什么时候断开？-- 时间切片
+ * 2. 怎么断开？-- 并发渲染(实际上就是中断渲染)
  */
 export function workLoop(){
     
-    while(workInProgress){
+    while(workInProgress && !shouldYield()){
         // 向下的工作
         performUnitOfWork(workInProgress)
+    }
+    // 如果当workInProgress为null，则为完成
+    if(!workInProgress){
+        rootState = 1;
     }
 }
 
@@ -64,14 +77,35 @@ export function getRootForUpdateFiber(fiber: Fiber): FiberRoot{
 }
 
 /**
- * 更新Fiber树
+ * 调度节点更新Fiber树
  * @param fiber
  */
-export function updateOnFiber(fiberRoot: FiberRoot){
-    workInProgress = createWorkInProgress(fiberRoot.current!, fiberRoot.current!.pendingProps);
+export function scheduleUpdateOnFiber(fiberRoot: FiberRoot){
+    if(!workInProgressRoot){
+        workInProgressRoot = fiberRoot;
+    }
+
+    ensureRootIsScheduled();
+}
+
+/**
+ * 执行根节点的工作
+ */
+export function performWorkOnRoot(){
+    const fiberRoot = workInProgressRoot!;
+    if(!workInProgress){
+        workInProgress = createWorkInProgress(fiberRoot.current!, fiberRoot.current!.pendingProps);
+    }
+    if(getStartTime()<0){
+        setStartTime(getCurrentTime());
+    }
     workLoop();
-    // 重新挂载已经更新了的dom
-    commitMutaionEffects(fiberRoot.current!.alternate!);
-    fiberRoot.current = fiberRoot.current!.alternate;
-    commitPassiveUnmountEffects(fiberRoot.current!);
+    if(rootState === 1){
+        // 重新挂载已经更新了的dom
+        commitMutaionEffects(fiberRoot.current!.alternate!);
+        fiberRoot.current = fiberRoot.current!.alternate;
+        commitPassiveUnmountEffects(fiberRoot.current!);
+        return;
+    }
+    ensureRootIsScheduled();
 }

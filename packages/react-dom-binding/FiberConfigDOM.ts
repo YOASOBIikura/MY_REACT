@@ -94,4 +94,7 @@ export function setProp(dom: Instance, prop: string, value: any){
     }
 }
 
-
+/**
+ * 调度微任务
+ */
+ export const scheduleMicroTask = typeof queueMicrotask === 'function'?queueMicrotask:(callback:()=>void)=>Promise.resolve().then(callback);
