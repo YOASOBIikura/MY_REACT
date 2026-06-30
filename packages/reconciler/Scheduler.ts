@@ -87,7 +87,7 @@ function workLoop(startTime: number){
     currentTask = taskQueue.shift()!;
     while(currentTask){
         currentTask.callback();
-        currentTask = taskQueue.shift()!;
+        currentTask = taskQueue[0]!;
         if(currentTask && currentTask.expirationTime > startTime){
             break;
         }

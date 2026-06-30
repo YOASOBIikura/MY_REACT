@@ -2,10 +2,10 @@ import { beginWork } from "./BeginWork.js";
 import { completeWork } from "./CompleteWork.js";
 import { appendChild, removeChild } from "../react-dom-binding/FiberConfigDOM.js";
 import type { Fiber, FiberRoot } from "./ReactInternalTyes.js";
-import { commitMutaionEffects, commitPassiveUnmountEffects } from "./CommitWork.js";
+import { commitMutaionEffects, commitPassiveMountEffects, commitPassiveUnmountEffects } from "./CommitWork.js";
 import { createWorkInProgress } from "./Fiber.js";
 import { ensureRootIsScheduled } from "./FiberRootScheduler.js";
-import { getCurrentTime, getStartTime, setStartTime, shouldYield } from "./Scheduler.js";
+import { getCurrentTime, getStartTime, scheduleCallback, setStartTime, shouldYield } from "./Scheduler.js";
 
 // 当前正在处理的节点
 let workInProgress:Fiber|null = null;
@@ -104,7 +104,11 @@ export function performWorkOnRoot(){
         // 重新挂载已经更新了的dom
         commitMutaionEffects(fiberRoot.current!.alternate!);
         fiberRoot.current = fiberRoot.current!.alternate;
-        commitPassiveUnmountEffects(fiberRoot.current!);
+        scheduleCallback(()=>{
+            commitPassiveUnmountEffects(fiberRoot.current!);
+            commitPassiveMountEffects(fiberRoot.current!);
+        })
+        
         return;
     }
     ensureRootIsScheduled();

@@ -29,5 +29,6 @@ export type Fiber = {
     flags: Flags,
     subtreeFlags: Flags,
     deletions: Fiber[]|null,
-    index: number
+    index: number,
+    updateQueue: any
 }

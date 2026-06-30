@@ -1,7 +1,8 @@
 import { appendChild, commitTextUpdate, insertBefore, removeChild, setProp, type Instance } from "packages/react-dom-binding/FiberConfigDOM.js";
 import { FunctionComponent, HostComponent, HostRoot, HostText, type Fiber } from "./ReactInternalTyes.js";
-import { ChildDeletion, MutationMask, Placement, Update } from "./FiberFlags.js";
+import { ChildDeletion, MutationMask, PassiveEffect, Placement, Update } from "./FiberFlags.js";
 import { detachDeletedInstance } from "packages/react-dom-binding/ReactDomComponentTree.js";
+import { HasEffect } from "./FiberHook.js";
 
 // 最近的宿主父节点
 let hostParent: HTMLElement | null = null;
@@ -503,10 +504,42 @@ function commitPassiveUnmountEffectsInsideOfDeletedTree_complete(childToDelete: 
 
 /**
  * 提交删除子树内部副作用开始的方法
+ * @param finishedWork 
+ */
+function commitHookPassiveUnMountEffects(finishedWork: Fiber){
+    const {updateQueue} = finishedWork;
+    const lastEffect = updateQueue.lastEffect;
+    if(lastEffect !== null){
+        const firstEffect = lastEffect.next;
+        let effect = firstEffect;
+        do{
+            if(effect.destroy){
+                effect.destroy();
+            }
+            effect = effect.next;
+        }while(effect !== firstEffect);
+    }
+}
+
+/**
+ * 提交删除子树内部副作用开始的方法
+ * @param childToDelete
+ */
+function commitPassiveUnmountInsideDeletedTreeOnFiber(finishedWork: Fiber){
+    switch(finishedWork.tag){
+        case FunctionComponent:
+            commitHookPassiveUnMountEffects(finishedWork);
+            break;
+    }
+}
+
+/**
+ * 提交删除子树内部副作用开始的方法
  * @param childToDelete
  */
 function commitPassiveUnmountEffectsInsideOfDeletedTree_begin(childToDelete: Fiber){
     while(nextEffect){
+        commitPassiveUnmountInsideDeletedTreeOnFiber(childToDelete);
         if(nextEffect.child){
             nextEffect = nextEffect.child;
         }else{
@@ -553,6 +586,9 @@ function commitPassiveUnmountEffectsOnFiber(finishedWork: Fiber){
     switch(finishedWork.tag){
         case FunctionComponent:
             recursivelyTraversPassiveUnmountEffects(finishedWork);
+            if(finishedWork.flags & PassiveEffect){
+                commitHookPassiveUnMountEffects(finishedWork);
+            }
             break;
         case HostRoot:
             recursivelyTraversPassiveUnmountEffects(finishedWork);
@@ -569,6 +605,63 @@ function commitPassiveUnmountEffectsOnFiber(finishedWork: Fiber){
  */
 export function commitPassiveUnmountEffects(finishedWork: Fiber){
     commitPassiveUnmountEffectsOnFiber(finishedWork);
+}
+
+/**
+ * 递归遍历被动挂载副作用
+ * @param finishedWork
+ */
+function recursivelyTraversPassiveMountEffects(finishedWork: Fiber){
+    let child = finishedWork.child;
+    while(child){
+        commitPassiveMountEffectsOnFiber(child);
+        child = child.sibling;
+    }
+}
+
+/**
+ * 处理effect的mount工作
+ * @param finishedWork 
+ */
+function commitHookPassiveMountEffects(finishedWork: Fiber){
+    const {updateQueue} = finishedWork;
+    const lastEffect = updateQueue.lastEffect;
+    if(lastEffect){
+        const firstEffect = lastEffect.next;
+        let effect = firstEffect;
+        do{
+            if(effect.tag & HasEffect){
+                effect.destroy = effect.create()
+            }
+            effect = effect.next;
+        }while(effect !== firstEffect)
+    }
+}
+
+/**
+ * 针对节点提交被动挂载副作用
+ * @param finishedWork 
+ */
+function commitPassiveMountEffectsOnFiber(finishedWork: Fiber){
+    switch(finishedWork.tag){
+        case FunctionComponent:
+            recursivelyTraversPassiveMountEffects(finishedWork);
+            if(finishedWork.flags & PassiveEffect){
+                commitHookPassiveMountEffects(finishedWork);
+            }
+            break;
+        default:
+            recursivelyTraversPassiveMountEffects(finishedWork);
+            break;
+    }
+}
+
+/**
+ * 提交被动挂载副作用--异步进行善后工作 （阶段）
+ * @param finishedWork 
+ */
+export function commitPassiveMountEffects(finishedWork: Fiber){
+    commitPassiveMountEffectsOnFiber(finishedWork);
 }
 
 

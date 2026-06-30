@@ -1,7 +1,12 @@
+import { PassiveEffect } from "./FiberFlags.js";
 import { updateContainer } from "./FiberReconciler.js";
 import type { Fiber } from "./ReactInternalTyes.js"
 import { getRootForUpdateFiber, scheduleUpdateOnFiber } from "./WorkLoop.js";
 import { ReactSharedInternals } from "packages/react/index.js";
+type HookFlags = number;
+export const NoFlags = 0b0000;
+export const HasEffect = 0b0001;
+
 
 export type Hook = {
     memoizedState: any,
@@ -9,11 +14,22 @@ export type Hook = {
     next: Hook | null,
 }
 
+export type SimpleEffect = {
+    tag: HookFlags,
+    deps: any[]|null ,
+    create: ()=>(()=>void|void),
+    destroy: any|null,
+    next: SimpleEffect|null
+} 
+
 // 当前正在渲染的fiber
 let currentlyRenderingFiber: Fiber|null = null;
 
 // 当前工作的hook
 let workInProgressHook: Hook|null = null;
+
+// current树上对应的当前的hook的hook
+let currentHook: Hook|null = null;
 
 // 定义一个导出的状态管理hook
 // export let useState:any = null; 
@@ -56,7 +72,7 @@ function dispatchSetState(fiber: Fiber, hook: Hook, newState: any){
  * @returns hook对象
  */
 function mountWorkInProgressHook(initialState: any){
-     const hook: Hook = {
+    const hook: Hook = {
         memoizedState: initialState,
         dispatch: null,
         next: null 
@@ -96,10 +112,106 @@ export function updateState(){
 }
 
 /**
+ * 创建effect对象,构建链表，返回effect
+ * @param create 创建effect的函数
+ * @param deps 依赖项
+ * @returns effect对象
+ */
+function pushSimpleEffect(tag: HookFlags, create:()=>(()=>void|void), deps: any[]|null){
+    const effect: SimpleEffect = {
+        tag,
+        create,
+        destroy: null,
+        deps,
+        next: null
+    }
+    let componentUpdateQueue = currentlyRenderingFiber!.updateQueue;
+    if(componentUpdateQueue === null){
+        componentUpdateQueue = {lastEffect: null};
+        currentlyRenderingFiber!.updateQueue = componentUpdateQueue;
+    }
+    const lastEffect = componentUpdateQueue.lastEffect;
+    if(lastEffect === null){
+        componentUpdateQueue.lastEffect = effect.next = effect;
+    }else{
+        const firstEffect = lastEffect.next;
+        lastEffect.next = effect;
+        effect.next = firstEffect;
+        componentUpdateQueue.lastEffect = effect;
+    }
+    return effect;
+}
+
+/**
+ * 首次构建时effect的hook
+ * 1. 创建一个hook
+ * 2. 修改fiber的flags
+ * 3. 设置memoizedState为effect对象
+ * @param create 创建effect的函数
+ * @param createDeps 依赖项
+ */
+export function mountEffect(create:()=>(()=>void|void), createDeps?: any[]){
+    const hook = mountWorkInProgressHook(null);
+    const deps = createDeps === undefined ? null : createDeps;
+    currentlyRenderingFiber!.flags |= PassiveEffect;
+    hook.memoizedState = pushSimpleEffect(HasEffect, create, deps);
+}
+
+/**
+ * 判断依赖项是否相等
+ * @param prevDeps 前一个依赖项
+ * @param nextDeps 后一个依赖项
+ * @returns 是否相等
+ */
+function areHookInputsEqual(prevDeps: any[]|null, nextDeps: any[]|null){
+    if(prevDeps === null || nextDeps === null){
+        return false;
+    }
+    for(let i = 0; i < prevDeps.length; i++){
+        if(prevDeps[i] !== nextDeps[i]){
+            return false;
+        }
+    }
+    return true;
+}
+
+/**
+ * 更新时effect的hook
+ * 1. 获取当前hook
+ * 2. 设置fiber的flags
+ * 3. 设置memoizedState为effect对象
+ * @param create 创建effect的函数
+ * @param createDeps 依赖项
+ */
+ export function updateEffect(create:()=>(()=>void|void), createDeps?: any[]){
+    const hook = updateWorkInProgressHook();
+    const nextDeps = createDeps === undefined ? null : createDeps;
+    if(currentHook){
+        if(nextDeps){
+            const prevDeps = currentHook!.memoizedState.deps;
+            if(areHookInputsEqual(prevDeps, nextDeps)){
+                hook!.memoizedState = pushSimpleEffect(NoFlags, create, nextDeps);
+                return;
+            }
+        }
+    }
+    currentlyRenderingFiber!.flags |= PassiveEffect;
+    hook!.memoizedState = pushSimpleEffect(HasEffect, create, nextDeps);
+ }
+
+/**
  * update阶段获取当前的hook
  * @returns 当前的hook
  */
 function updateWorkInProgressHook(){
+    const current = currentlyRenderingFiber!.alternate;
+    if(current){
+        if(currentHook === null){
+            currentHook = current.memoizedState;
+        }else{
+            currentHook = currentHook.next;
+        }
+    }
     if(workInProgressHook === null){
         workInProgressHook = currentlyRenderingFiber!.memoizedState;
     }else{
@@ -120,9 +232,9 @@ export function renderWihtHooks(workInProgress: Fiber, Component: any){
     currentlyRenderingFiber = workInProgress;
     // 根据组件是否存在memoizedState状态来判断是首次加载还是二次更新
     if(currentlyRenderingFiber!.memoizedState === null){
-        ReactSharedInternals.H = mountState;
+        ReactSharedInternals.H = {useState: mountState, useEffect: mountEffect};
     }else{
-        ReactSharedInternals.H = updateState;
+        ReactSharedInternals.H = {useState: updateState, useEffect: updateEffect};
     }
     const result = Component();
     workInProgressHook = null;
